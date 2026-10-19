@@ -4,6 +4,7 @@
     "slug": "spendwise",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "spendwise",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
@@ -20,6 +21,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-font",
+      "expo-router"
+    ]
   }
 }
