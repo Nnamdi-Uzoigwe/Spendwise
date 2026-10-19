@@ -69,6 +69,14 @@ export default function ProfileScreen() {
         <Text style={styles.linkText}>Recurring bills & salary</Text>
         <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
       </Pressable>
+            <Pressable
+        onPress={() => router.push('/settings/notifications')}
+        style={styles.linkRow}
+      >
+        <Ionicons name="notifications-outline" size={20} color={colors.accent} />
+        <Text style={styles.linkText}>Notifications</Text>
+        <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+      </Pressable>
       <Text style={styles.sectionTitle}>Accounts</Text>
 
       {loading ? (

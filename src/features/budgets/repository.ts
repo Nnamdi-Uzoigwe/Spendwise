@@ -1,5 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../../database/db';
+import { checkBudgetThresholdNotification } from '../notifications/service';
+import { CURRENCIES, formatMinor } from '../../domain/money';
 
 export type BudgetPeriodType = 'monthly' | 'custom';
 export type BudgetStatus = 'ok' | 'warning' | 'exceeded' | 'expired';
@@ -252,4 +254,23 @@ export async function toggleBudgetActive(id: string): Promise<void> {
     new Date().toISOString(),
     id,
   );
+}
+
+export async function checkAllBudgetThresholds(currencyCode: string): Promise<void> {
+  const budgets = await listBudgets();
+  const today = todayStr();
+  for (const b of budgets) {
+    if (!b.isActive) continue;
+    if (b.status === 'expired') continue;
+    const period = getBudgetPeriod(b, today);
+    if (!period) continue;
+    await checkBudgetThresholdNotification({
+      budgetId: b.id,
+      budgetName: b.name,
+      periodStart: period.start,
+      usagePct: b.usagePct,
+      spentLabel: formatMinor(b.spentMinor, CURRENCIES.NGN),
+      limitLabel: formatMinor(b.amountMinor, CURRENCIES.NGN),
+    });
+  }
 }

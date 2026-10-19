@@ -1,10 +1,12 @@
-import * as Crypto from 'expo-crypto';
-import { getDatabase } from '../../database/db';
-import { nextOccurrence, type RecurrenceFrequency } from './recurrence';
+import * as Crypto from "expo-crypto";
+import { getDatabase } from "../../database/db";
+import { nextOccurrence, type RecurrenceFrequency } from "./recurrence";
+import { cancelNotificationByDedupe, scheduleRecurringReminder } from "../notifications/service";
+import { formatMinor, CURRENCIES } from "../../domain/money";
 
 export interface RecurringSchedule {
   id: string;
-  type: 'income' | 'expense';
+  type: "income" | "expense";
   amountMinor: number;
   currencyCode: string;
   accountId: string;
@@ -23,7 +25,7 @@ export interface RecurringSchedule {
 }
 
 export interface CreateRecurringInput {
-  type: 'income' | 'expense';
+  type: "income" | "expense";
   amountMinor: number;
   currencyCode: string;
   accountId: string;
@@ -37,7 +39,7 @@ export interface CreateRecurringInput {
 
 interface Row {
   id: string;
-  type: 'income' | 'expense';
+  type: "income" | "expense";
   amount_minor: number;
   currency_code: string;
   account_id: string;
@@ -101,7 +103,9 @@ export async function listSchedules(): Promise<RecurringSchedule[]> {
   return rows.map(mapRow);
 }
 
-export async function getSchedule(id: string): Promise<RecurringSchedule | null> {
+export async function getSchedule(
+  id: string,
+): Promise<RecurringSchedule | null> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<Row>(
     `SELECT ${SELECT_COLS} ${FROM_JOIN} WHERE rs.id = ?`,
@@ -110,7 +114,9 @@ export async function getSchedule(id: string): Promise<RecurringSchedule | null>
   return row ? mapRow(row) : null;
 }
 
-export async function createSchedule(input: CreateRecurringInput): Promise<RecurringSchedule> {
+export async function createSchedule(
+  input: CreateRecurringInput,
+): Promise<RecurringSchedule> {
   const db = await getDatabase();
   const now = new Date().toISOString();
   const id = Crypto.randomUUID();
@@ -136,12 +142,28 @@ export async function createSchedule(input: CreateRecurringInput): Promise<Recur
     now,
   );
   const created = await getSchedule(id);
-  if (!created) throw new Error('Schedule not found after create.');
+  if (created) {
+    await scheduleRecurringReminder({
+      scheduleId: created.id,
+      nextDate: created.nextOccurrenceDate,
+      description: created.description,
+      amountLabel: formatMinor(created.amountMinor, CURRENCIES.NGN),
+      type: created.type,
+    });
+  }
+  if (!created) throw new Error("Schedule not found after create.");
   return created;
 }
 
-export async function updateSchedule(id: string, input: CreateRecurringInput): Promise<void> {
+export async function updateSchedule(
+  id: string,
+  input: CreateRecurringInput,
+): Promise<void> {
   const db = await getDatabase();
+    const before = await getSchedule(id);
+  if (before) {
+    await cancelNotificationByDedupe(`recurring:${id}:${before.nextOccurrenceDate}`);
+  }
   await db.runAsync(
     `UPDATE recurring_schedules SET
        type = ?, amount_minor = ?, currency_code = ?, account_id = ?,
@@ -162,9 +184,23 @@ export async function updateSchedule(id: string, input: CreateRecurringInput): P
     new Date().toISOString(),
     id,
   );
+    const after = await getSchedule(id);
+  if (after) {
+    await scheduleRecurringReminder({
+      scheduleId: after.id,
+      nextDate: after.nextOccurrenceDate,
+      description: after.description,
+      amountLabel: formatMinor(after.amountMinor, CURRENCIES.NGN),
+      type: after.type,
+    });
+  }
 }
 
 export async function deleteSchedule(id: string): Promise<void> {
+  const schedule = await getSchedule(id);
+  if (schedule) {
+    await cancelNotificationByDedupe(`recurring:${id}:${schedule.nextOccurrenceDate}`);
+  }
   const db = await getDatabase();
   await db.runAsync(`DELETE FROM recurring_schedules WHERE id = ?`, id);
 }
@@ -189,13 +225,13 @@ export async function markSchedulePaid(id: string): Promise<{
 }> {
   const db = await getDatabase();
   const schedule = await getSchedule(id);
-  if (!schedule) throw new Error('Schedule not found.');
+  if (!schedule) throw new Error("Schedule not found.");
 
   const occurredAt = schedule.nextOccurrenceDate;
   const txnId = Crypto.randomUUID();
   const now = new Date().toISOString();
 
-  await db.execAsync('BEGIN');
+  await db.execAsync("BEGIN");
   try {
     await db.runAsync(
       `INSERT INTO transactions
@@ -221,7 +257,8 @@ export async function markSchedulePaid(id: string): Promise<{
       schedule.nextOccurrenceDate,
     );
 
-    const shouldDeactivate = schedule.endDate !== null && candidate > schedule.endDate;
+    const shouldDeactivate =
+      schedule.endDate !== null && candidate > schedule.endDate;
 
     await db.runAsync(
       `UPDATE recurring_schedules
@@ -233,10 +270,23 @@ export async function markSchedulePaid(id: string): Promise<{
       id,
     );
 
-    await db.execAsync('COMMIT');
-    return { transactionId: txnId, nextDate: shouldDeactivate ? null : candidate };
+    await db.execAsync("COMMIT");
+    const updated = await getSchedule(id);
+    if (updated && updated.isActive) {
+      await scheduleRecurringReminder({
+        scheduleId: updated.id,
+        nextDate: updated.nextOccurrenceDate,
+        description: updated.description,
+        amountLabel: formatMinor(updated.amountMinor, CURRENCIES.NGN),
+        type: updated.type,
+      });
+    }
+    return {
+      transactionId: txnId,
+      nextDate: shouldDeactivate ? null : candidate,
+    };
   } catch (e) {
-    await db.execAsync('ROLLBACK');
+    await db.execAsync("ROLLBACK");
     throw e;
   }
 }
@@ -249,8 +299,8 @@ export interface ScheduleDueInfo {
 export function getDueInfo(schedule: RecurringSchedule): ScheduleDueInfo {
   if (!schedule.isActive) return { due: false, daysUntil: Infinity };
   const today = todayStr();
-  const t = new Date(today + 'T00:00:00Z').getTime();
-  const n = new Date(schedule.nextOccurrenceDate + 'T00:00:00Z').getTime();
+  const t = new Date(today + "T00:00:00Z").getTime();
+  const n = new Date(schedule.nextOccurrenceDate + "T00:00:00Z").getTime();
   const daysUntil = Math.round((n - t) / 86400000);
   return { due: daysUntil <= 0, daysUntil };
 }

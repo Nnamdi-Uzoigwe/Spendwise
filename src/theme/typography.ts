@@ -6,30 +6,29 @@ const tabular: TextStyle['fontVariant'] = ['tabular-nums'];
 
 export const typography = {
   display: {
-    fontFamily: fontFamily.bold,
+    fontFamily: fontFamily.display,
     fontSize: 40,
     lineHeight: 48,
     color: colors.textPrimary,
-    fontVariant: tabular,
   } as TextStyle,
 
   h1: {
-    fontFamily: fontFamily.bold,
+    fontFamily: fontFamily.h1,
     fontSize: 28,
     lineHeight: 36,
     color: colors.textPrimary,
   } as TextStyle,
 
   h2: {
-    fontFamily: fontFamily.semibold,
+    fontFamily: fontFamily.h2,
     fontSize: 22,
-    lineHeight: 28,
+    lineHeight: 30,
     color: colors.textPrimary,
   } as TextStyle,
 
   h3: {
-    fontFamily: fontFamily.semibold,
-    fontSize: 18,
+    fontFamily: fontFamily.h3,
+    fontSize: 17,
     lineHeight: 24,
     color: colors.textPrimary,
   } as TextStyle,

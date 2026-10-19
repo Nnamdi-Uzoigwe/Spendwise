@@ -190,6 +190,25 @@ export function getDatabase(): Promise<SQLite.SQLiteDatabase> {
         `);
         await db.execAsync('PRAGMA user_version = 6');
       }
+            if (currentVersion < 7) {
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS notification_records (
+            id TEXT PRIMARY KEY NOT NULL,
+            notification_type TEXT NOT NULL,
+            entity_id TEXT,
+            scheduled_at TEXT NOT NULL,
+            os_identifier TEXT,
+            status TEXT NOT NULL DEFAULT 'scheduled'
+              CHECK (status IN ('scheduled','cancelled','delivered','failed')),
+            dedupe_key TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+          );
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_notification_dedupe
+            ON notification_records(dedupe_key);
+        `);
+        await db.execAsync('PRAGMA user_version = 7');
+      }
       return db;
     })();
   }

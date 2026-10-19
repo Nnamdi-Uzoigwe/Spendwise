@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../../database/db';
+import { checkAllBudgetThresholds } from '../budgets/repository';
 
 export type TransactionType = 'income' | 'expense' | 'transfer';
 
@@ -91,6 +92,11 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
     txn.createdAt,
     now,
   );
+
+  if (txn.type === 'expense') {
+    await checkAllBudgetThresholds(txn.currencyCode);
+  }
+
   return txn;
 }
 
@@ -187,6 +193,11 @@ export async function updateTransaction(
     now,
     id,
   );
+
+  if (input.type === 'expense') {
+    await checkAllBudgetThresholds(input.currencyCode);
+  }
+
   const updated = await getTransactionDetail(id);
   if (!updated) throw new Error('Transaction not found after update.');
   return updated;
@@ -194,7 +205,15 @@ export async function updateTransaction(
 
 export async function deleteTransaction(id: string): Promise<void> {
   const db = await getDatabase();
+  const before = await db.getFirstAsync<{ type: TransactionType; currency_code: string }>(
+    `SELECT type, currency_code FROM transactions WHERE id = ?`,
+    id,
+  );
   await db.runAsync(`DELETE FROM transactions WHERE id = ?`, id);
+
+  if (before?.type === 'expense') {
+    await checkAllBudgetThresholds(before.currency_code);
+  }
 }
 
 export interface MonthlySummary {

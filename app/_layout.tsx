@@ -5,6 +5,10 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
+import {
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -18,6 +22,8 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
   });
   const [dbReady, setDbReady] = useState(false);
 
@@ -44,28 +50,31 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-               <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen
           name="transactions/new"
-          options={{ presentation: 'modal', headerShown: false }}
+          options={{ presentation: "modal", headerShown: false }}
         />
-        <Stack.Screen name="transactions/[id]" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="transactions/[id]"
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="budgets/new"
-          options={{ presentation: 'modal', headerShown: false }}
+          options={{ presentation: "modal", headerShown: false }}
         />
         <Stack.Screen
           name="goals/new"
-          options={{ presentation: 'modal', headerShown: false }}
+          options={{ presentation: "modal", headerShown: false }}
         />
         <Stack.Screen name="goals/[id]" options={{ headerShown: false }} />
         <Stack.Screen
           name="goals/contribute"
-          options={{ presentation: 'modal', headerShown: false }}
+          options={{ presentation: "modal", headerShown: false }}
         />
         <Stack.Screen
           name="recurring/new"
-          options={{ presentation: 'modal', headerShown: false }}
+          options={{ presentation: "modal", headerShown: false }}
         />
       </Stack>
     </SafeAreaProvider>
