@@ -26,7 +26,15 @@
       "expo-sqlite",
       "expo-font",
       "expo-router",
-      "expo-notifications"
+      "expo-notifications",
+       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "backgroundColor": "#F5F6FA",
+          "imageWidth": 160
+        }
+      ]
     ]
   }
 }

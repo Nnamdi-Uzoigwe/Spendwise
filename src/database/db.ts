@@ -209,6 +209,23 @@ export function getDatabase(): Promise<SQLite.SQLiteDatabase> {
         `);
         await db.execAsync('PRAGMA user_version = 7');
       }
+            if (currentVersion < 8) {
+        // v1 created profile without updated_at. Add it now so onboarding
+        // (and future settings writes) can stamp modification time.
+        const cols = await db.getAllAsync<{ name: string }>(
+          'PRAGMA table_info(profile)',
+        );
+        const hasUpdatedAt = cols.some((c) => c.name === 'updated_at');
+        if (!hasUpdatedAt) {
+          await db.execAsync(
+            `ALTER TABLE profile ADD COLUMN updated_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z'`,
+          );
+          await db.execAsync(
+            `UPDATE profile SET updated_at = datetime('now') WHERE id = 1`,
+          );
+        }
+        await db.execAsync('PRAGMA user_version = 8');
+      }
       return db;
     })();
   }

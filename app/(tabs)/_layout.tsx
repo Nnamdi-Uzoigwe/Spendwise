@@ -1,8 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { getDatabase } from '../../src/database/db';
 import { colors } from '../../src/theme';
 
 export default function TabsLayout() {
+  const [checking, setChecking] = useState(true);
+  const [onboarded, setOnboarded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const db = await getDatabase();
+      const row = await db.getFirstAsync<{ onboarding_complete: number }>(
+        'SELECT onboarding_complete FROM profile WHERE id = 1',
+      );
+      setOnboarded(row?.onboarding_complete === 1);
+      setChecking(false);
+    })();
+  }, []);
+
+  if (checking) return null;
+  if (!onboarded) return <Redirect href="/onboarding" />;
+
   return (
     <Tabs
       screenOptions={{
